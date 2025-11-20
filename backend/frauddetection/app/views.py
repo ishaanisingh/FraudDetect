@@ -1,6 +1,7 @@
 import joblib
 import pandas as pd
 import os
+import json
 import numpy as np
 import random
 from django.conf import settings
@@ -8,23 +9,27 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-# --- SETUP ---
+# --- SETUP: Load Model & Stats ---
 model = None
 model_columns = []
 csv_path = os.path.join(settings.BASE_DIR, 'creditcard.csv')
 
 try:
+    print("--- 🛡️ SYSTEM STARTUP: Loading Model & Stats ---")
+    
     base_path = settings.BASE_DIR
     model_path = os.path.join(base_path, 'fraud_model_pipeline.pkl')
     columns_path = os.path.join(base_path, 'model_columns.pkl')
-
+    
     if os.path.exists(model_path) and os.path.exists(columns_path):
         model = joblib.load(model_path)
         model_columns = joblib.load(columns_path)
+        print("✅ Model and Feature Columns loaded successfully!")
     else:
-        print("⚠️ Model files missing.")
+        print("⚠️ WARNING: Model/Feature Column files not found.")
 except Exception as e:
-    print(f"❌ Error loading model: {e}")
+    print(f"❌ CRITICAL ERROR during startup: {str(e)}")
+    model = None
 
 # --- HELPER FUNCTION: CLEAN DATA ---
 def clean_to_float(value):
@@ -51,8 +56,7 @@ def predict(request):
 
         for col in model_columns:
             val = df.get(col, 0)
-            
-            # Use the new cleaning helper here
+            # Use the cleaning helper here
             df_clean.loc[0, col] = clean_to_float(val)
 
         prediction = model.predict(df_clean)[0]
@@ -76,7 +80,9 @@ def predict(request):
 
 @api_view(['GET'])
 def validation_data(request):
-    
+    """
+    Reads the REAL creditcard.csv, samples it, and validates the model against it.
+    """
     if not os.path.exists(csv_path):
         return Response({'error': 'creditcard.csv file not found on server. Please upload it.'}, status=404)
         
@@ -84,46 +90,71 @@ def validation_data(request):
         return Response({'error': 'Model not loaded'}, status=503)
 
     try:
-        # 1. Load a random sample of the REAL dataset (Still the only way to avoid the crash)
+        # 1. Load a random sample of the REAL dataset (200 rows for charts)
         df = pd.read_csv(csv_path)
+        
         target_col = 'is_fraud' if 'is_fraud' in df.columns else 'Class'
         
-        # Take a sample of 20 rows for fast display
-        sample_df = df.sample(n=20, random_state=42)
+        # Take a sample of 200 rows for the statistics calculation
+        sample_df = df.sample(n=200, random_state=42)
+        
+        # Prepare inputs for model (This is where X_clean MUST be defined)
+        X_sample = sample_df.drop(columns=[target_col])
+        X_sample = X_sample.select_dtypes(include=[np.number]) # Filter to numeric columns only
+        
+        # --- DEFINITION OF X_clean (FIXES THE NAME ERROR) ---
+        X_clean = pd.DataFrame(columns=model_columns)
+        for col in model_columns:
+             if col in X_sample.columns:
+                 # Clean the data before placing it into the clean structure
+                 X_clean[col] = X_sample[col].apply(clean_to_float)
+             else:
+                 X_clean[col] = 0
         
         # 2. Run REAL Predictions on this sample
-        y_pred = model.predict(X_clean) # Assuming X_clean is populated correctly
+        y_pred = model.predict(X_clean)
         y_actual = sample_df[target_col].values
-        
-        # --- CRITICAL FIX IS APPLIED HERE ---
-        amount_display_key = 'Amount' if 'Amount' in sample_df.columns else 'Transaction Amount'
         
         # 3. Build the Data List for the Frontend Table (First 10 rows)
         table_data = []
+        amount_display_key = 'Amount' if 'Amount' in sample_df.columns else 'Transaction Amount'
+        
         for i in range(10): 
             row_actual = int(y_actual[i])
             row_pred = int(y_pred[i])
             
-            # Use the cleaning helper on the raw data before displaying
             raw_amount = sample_df.iloc[i].get(amount_display_key, 0.0)
             clean_amount = clean_to_float(raw_amount)
             
             table_data.append({
-                "time": str(sample_df.iloc[i].get('Time', 'N/A')),
-                "amount": clean_amount, # <--- THIS IS THE CLEAN, NON-ZERO NUMBER
+                "time": str(X_clean.iloc[i].get('Time', 'N/A')),
+                "amount": clean_amount, 
                 "actual": "Fraud" if row_actual == 1 else "Legitimate",
                 "predicted": "Fraud" if row_pred == 1 else "Legitimate",
                 "match": row_actual == row_pred
             })
 
-        # ... (rest of the stats logic and return) ...
+        # 4. Calculate Real Statistics for the Charts (using all 200 rows)
+        actual_fraud = int(np.sum(y_actual == 1))
+        actual_legit = int(np.sum(y_actual == 0))
+        pred_fraud = int(np.sum(y_pred == 1))
+        pred_legit = int(np.sum(y_pred == 0))
         
-        # [Placeholder for the rest of the stats calculation to keep the function complete]
-        
+        correct_count = int(np.sum(y_actual == y_pred))
+        false_alarm = int(np.sum((y_pred == 1) & (y_actual == 0)))
+        missed_fraud = int(np.sum((y_pred == 0) & (y_actual == 1)))
+
+        stats = {
+            "actual_fraud": actual_fraud, "actual_legit": actual_legit,
+            "pred_fraud": pred_fraud, "pred_legit": pred_legit,
+            "correct_count": correct_count, "false_alarm": false_alarm, 
+            "missed_fraud": missed_fraud
+        }
+
         return Response({
             'status': 'success',
             'data': table_data,
-            'stats': {}, # Placeholder for quick fix push
+            'stats': stats, # Accurate stats for the charts
             'columns': model_columns
         })
 
