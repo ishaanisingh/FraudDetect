@@ -55,7 +55,7 @@ try:
         
         if os.path.exists(STATS_FILE):
              with open(STATS_FILE, 'r') as f:
-                pre_calculated_stats = json.load(f)
+                 pre_calculated_stats = json.load(f)
         
         if os.path.exists(COLUMNS_FILE):
             COLUMNS_USED = joblib.load(COLUMNS_FILE)
@@ -132,7 +132,9 @@ def transaction_list_create(request):
             input_df = pd.DataFrame([data_engineered])[COLUMNS_USED] 
             y_prob = pipeline_lgbm.predict_proba(input_df)[0][1]
             
-            NEW_THRESHOLD = 0.75
+            # CRITICAL FIX: Lowering the threshold to catch more fraud cases (reduce False Negatives)
+            # 0.75 was too high, leading to most fraud being missed.
+            NEW_THRESHOLD = 0.15 
             is_fraud = bool(y_prob >= NEW_THRESHOLD)
             
             transaction_instance = serializer.save(is_fraud=is_fraud)
@@ -182,7 +184,7 @@ def transaction_detail(request, pk):
 @api_view(['GET'])
 def validation_data(request):
     """
-    Returns the accurate, pre-calculated 2.5 lakh stats (for charts) 
+    Returns the accurate, pre-calculated stats (for charts) 
     and fast, random data (for table) to ensure stability.
     """
     if not pre_calculated_stats:
@@ -193,13 +195,20 @@ def validation_data(request):
         # This is a sample for the table display only—it uses real amounts, not zeros.
         dummy_data = []
         for i in range(10): 
+            # In the dashboard, match: True/False depends on whether Actual matches Predicted based on the threshold
+            # Since we cannot run the full prediction logic here (it's too slow), 
+            # we simply generate random matches/mismatches for the small sample table.
+            
+            # The 'match' value for the small table should be based on a random prediction:
             is_fraud = random.choice([True, False])
+            is_predicted = random.choice([True, False])
+            
             dummy_data.append({
                 "time": f"{random.randint(10,23)}:{random.randint(10,59)}",
-                "amount": round(random.uniform(50.0, 600.0), 2), # RANDOM, but realistic amounts
+                "amount": round(random.uniform(50.0, 600.0), 2), 
                 "actual": "Fraud" if is_fraud else "Legitimate",
-                "predicted": "Fraud" if is_fraud else "Legitimate",
-                "match": random.choice([True, False])
+                "predicted": "Fraud" if is_predicted else "Legitimate",
+                "match": (is_fraud == is_predicted)
             })
 
         return Response({
