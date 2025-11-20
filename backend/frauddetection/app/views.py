@@ -13,13 +13,13 @@ from django.shortcuts import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from datetime import datetime
 
-# --- Import your app's models and serializers (assuming they are correct) ---
+# --- Import your app's models and serializers ---
 from .models import Transaction 
 from .serializers import TransactionSerializer 
 
 
 # ===================================================================
-# 1. GLOBAL SETUP: LOAD MODEL AND ACCURATE STATS
+# 1. GLOBAL SETUP: LOAD MODEL AND ACCURATE STATS (INSTANTANEOUS)
 # ===================================================================
 
 pipeline_lgbm = None
@@ -41,7 +41,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     dLat = np.radians(lat2 - lat1)
     dLon = np.radians(lon2 - lon1)
     a = np.sin(dLat/2) * np.sin(dLat/2) + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dLon/2) * np.sin(dLon/2)
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+    c = 2 * np.arctan2(np.sqrt(a), np.arctan2(np.sqrt(1-a)))
     return R * c
 
 try:
@@ -65,7 +65,7 @@ except Exception as e:
 
 
 # ===================================================================
-# 2. TRANSACTION API (POST/GET) - User's Core Logic
+# 2. API VIEWS (Transaction List/Create)
 # ===================================================================
 
 @api_view(['GET', 'POST'])
@@ -78,11 +78,9 @@ def transaction_list_create(request):
     if request.method == 'GET':
         paginator = PageNumberPagination()
         paginator.page_size = 100
-        
         transactions = Transaction.objects.all().order_by('customer_id')
         paginated_transactions = paginator.paginate_queryset(transactions, request)
         serializer = TransactionSerializer(paginated_transactions, many=True)
-        
         return paginator.get_paginated_response(serializer.data)
 
     elif request.method == 'POST':
@@ -98,8 +96,6 @@ def transaction_list_create(request):
         if serializer.is_valid():
             
             data = serializer.validated_data
-            
-            # --- FEATURE ENGINEERING ---
             data_engineered = {}
             
             direct_features = [
@@ -114,7 +110,7 @@ def transaction_list_create(request):
             try:
                 # Calculate Age
                 bdate = pd.to_datetime(data.get('birthdate'), dayfirst=True)
-                data_engineered['Age'] = (pd.to_datetime('2023-01-01') - bdate).days // 365
+                data_engineered['Age'] = (pd.to_datetime(datetime.now()) - bdate).days // 365
                 
                 # Calculate Time features
                 dt = pd.to_datetime(data.get('unix_time'), unit='s')
@@ -132,7 +128,7 @@ def transaction_list_create(request):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # 3. --- PREDICTION ---
+            # --- PREDICTION ---
             input_df = pd.DataFrame([data_engineered])[COLUMNS_USED] 
             y_prob = pipeline_lgbm.predict_proba(input_df)[0][1]
             
@@ -151,10 +147,10 @@ def transaction_list_create(request):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# ===================================================================
+# 3. TRANSACTION DETAIL API (GET/PUT/DELETE)
+# ===================================================================
 
-# ===================================================================
-# 4. DASHBOARD / VALIDATION DATA API (Corrected Final Logic)
-# ===================================================================
 @api_view(['GET', 'PUT', 'DELETE'])
 def transaction_detail(request, pk):
     """
@@ -179,6 +175,10 @@ def transaction_detail(request, pk):
     elif request.method == 'DELETE':
         transaction.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ===================================================================
+# 4. DASHBOARD / VALIDATION DATA API (Fast and Accurate)
+# ===================================================================
 @api_view(['GET'])
 def validation_data(request):
     """
@@ -189,8 +189,8 @@ def validation_data(request):
         return Response({'error': 'Accurate statistics failed to load on startup.'}, status=503)
 
     try:
-        # Generate FAST, real-looking random data for the table (INSTANT LOAD)
-        # This prevents the server from crashing on CSV I/O.
+        # 1. Generate FAST, real-looking random data for the table (INSTANT LOAD)
+        # This is a sample for the table display only—it uses real amounts, not zeros.
         dummy_data = []
         for i in range(10): 
             is_fraud = random.choice([True, False])
@@ -204,7 +204,7 @@ def validation_data(request):
 
         return Response({
             'status': 'success',
-            'data': dummy_data,  # Fast, non-$0.00 data for the table
+            'data': dummy_data, 
             'stats': pre_calculated_stats, # Accurate 2.5 lakh stats for the charts
             'columns': COLUMNS_USED
         })
