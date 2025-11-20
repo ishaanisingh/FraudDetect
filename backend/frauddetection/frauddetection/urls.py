@@ -24,15 +24,14 @@ urlpatterns = [
     # 1. Admin Site
     path('admin/', admin.site.urls),
     
-    # 2. PREDICTION API (The old endpoint needed for compatibility)
-    # This handles both GET (list) and POST (prediction) requests
+    # 2. LISTING AND PREDICTION (POST)
     path('api/transactions/', views.transaction_list_create, name='transaction_list_create'),
     
-    # 3. STATS API (The fixed endpoint for the dashboard/charts)
+    # 3. STATS / DASHBOARD API
     path('api/validation-data/', views.validation_data, name='validation_data'),
     
-    # 4. SINGLE TRANSACTION DETAIL (Needed for GET, PUT, DELETE operations)
+    # 4. SINGLE TRANSACTION DETAIL
     path('api/transactions/<int:pk>/', views.transaction_detail, name='transaction_detail'),
     
-    # Remove the crashing line path('api/predict/', views.predict, name='predict'),
+    # NOTE: The line path('api/predict/', views.predict, name='predict'), is the source of the crash and must be deleted.
 ]
