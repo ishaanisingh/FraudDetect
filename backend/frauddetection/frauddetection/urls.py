@@ -18,14 +18,12 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from app import views
+from app import views  # Import your views from the 'app' folder
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     
-    # Keep your existing API
-    path('api/transactions/', views.transaction_list_create),
-    
-    # --- ADD THIS NEW LINE ---
-    path('api/validation-data/', views.validation_data, name='validation_data'),
+    # This is the NEW endpoint for your ML Model
+    # It connects the URL 'api/predict/' to the 'predict' function in views.py
+    path('api/predict/', views.predict, name='predict'),
 ]
