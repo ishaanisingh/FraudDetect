@@ -361,7 +361,7 @@
             tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading data...</td></tr>';
 
             try {
-                const response = await fetch('http://localhost:8000/api/validation-data/');
+                const response = await fetch('https://frauddetect-24go.onrender.com/api/validation-data/');
                 const json = await response.json();
 
                 if (json.error) {

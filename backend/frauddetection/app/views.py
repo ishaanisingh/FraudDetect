@@ -110,3 +110,16 @@ def predict(request):
             {'error': 'An internal error occurred while processing the transaction.'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    @api_view(['GET'])
+def validation_data(request):
+    """
+    Returns the list of feature names (columns) the model expects.
+    The frontend uses this to validate inputs or build the form dynamically.
+    """
+    if not model_columns:
+        return Response({'error': 'Model columns not loaded'}, status=500)
+    
+    return Response({
+        'status': 'success',
+        'columns': model_columns
+    })

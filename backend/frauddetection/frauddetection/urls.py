@@ -26,4 +26,5 @@ urlpatterns = [
     # This is the NEW endpoint for your ML Model
     # It connects the URL 'api/predict/' to the 'predict' function in views.py
     path('api/predict/', views.predict, name='predict'),
+    path('api/validation-data/', views.validation_data, name='validation_data'),
 ]
