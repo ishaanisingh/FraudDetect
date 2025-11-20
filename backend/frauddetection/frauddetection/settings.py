@@ -82,17 +82,8 @@ WSGI_APPLICATION = 'frauddetection.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'delta_app',  # 1. The name of your MySQL database
-        'USER': 'root',    # 2. Your MySQL username
-        'PASSWORD': 'Ishani151219', # 3. Your MySQL password
-        'HOST': 'localhost',      # 4. Or the IP address/hostname of your MySQL server
-        'PORT': '3306',         # 5. The port your MySQL server is running on (default is 3306)
-        # OPTIONAL: Recommended settings for MySQL
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            # 'charset': 'utf8mb4', # Use utf8mb4 for full emoji support if needed
-        }
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
