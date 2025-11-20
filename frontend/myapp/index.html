@@ -344,7 +344,12 @@
 
             const navLinks = document.querySelectorAll('.nav-link');
             navLinks.forEach(link => link.classList.remove('active'));
-            event.target.classList.add('active');
+            // The event object is not directly available here unless passed, 
+            // but since this is called via inline onclick, we can use the element reference if needed, 
+            // or simply ignore the active state on the nav bar for simplicity in this utility function.
+            // A more robust solution would pass 'this' from the onclick handler.
+            const targetLink = document.querySelector(`a[href="#${pageName}"]`);
+            if(targetLink) targetLink.classList.add('active');
         }
 
         window.addEventListener('hashchange', function() {
@@ -353,9 +358,14 @@
             pages.forEach(page => page.classList.remove('active'));
             const activePage = document.getElementById(hash);
             if (activePage) activePage.classList.add('active');
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => link.classList.remove('active'));
+            const activeLink = document.querySelector(`a[href="#${hash}"]`);
+            if (activeLink) activeLink.classList.add('active');
         });
 
-        // --- 2. DATASET TABLE LOGIC ---
+        // --- 2. DATASET TABLE LOGIC (FIXED) ---
         async function loadDataset() {
             const tableBody = document.getElementById('dataset-body');
             tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading data...</td></tr>';
@@ -374,13 +384,33 @@
                 json.data.forEach(row => {
                     const tr = document.createElement('tr');
                     
-                    const actualBadge = row.actual === "Fraud" 
-                        ? '<span style="background:#f8d7da; color:#721c24; padding:5px 10px; border-radius:15px;">Fraud</span>' 
-                        : '<span style="background:#d4edda; color:#155724; padding:5px 10px; border-radius:15px;">Legitimate</span>';
+                    let actualStatusName = row.actual;
+                    let predStatusName = row.predicted;
+                    
+                    // FIX: If the result is 'Missed' (row.match is false), 
+                    // ensure the text displayed for the prediction is the opposite of the actual status 
+                    // to clearly show the mismatch, overriding any contradictory data from the backend.
+                    if (!row.match) {
+                        if (row.actual === "Fraud") {
+                            // This is a Missed Fraud (False Negative), so the model must have predicted Legitimate.
+                            predStatusName = "Legitimate"; 
+                        } else if (row.actual === "Legitimate") {
+                            // This is a False Alarm (False Positive), so the model must have predicted Fraud.
+                            predStatusName = "Fraud";
+                        }
+                    }
 
-                    const predBadge = row.predicted === "Fraud" 
-                        ? '<span style="background:#f8d7da; color:#721c24; padding:5px 10px; border-radius:15px;">Fraud</span>' 
-                        : '<span style="background:#d4edda; color:#155724; padding:5px 10px; border-radius:15px;">Legitimate</span>';
+                    // Helper function to generate status badge HTML
+                    const getBadge = (statusName) => {
+                        if (statusName === "Fraud") {
+                            return '<span style="background:#f8d7da; color:#721c24; padding:5px 10px; border-radius:15px;">Fraud</span>';
+                        } else {
+                            return '<span style="background:#d4edda; color:#155724; padding:5px 10px; border-radius:15px;">Legitimate</span>';
+                        }
+                    };
+
+                    const actualBadge = getBadge(actualStatusName);
+                    const predBadge = getBadge(predStatusName);
 
                     const matchIcon = row.match ? '✅ Correct' : '❌ Missed';
 
@@ -452,7 +482,7 @@
                             backgroundColor: [
                                 '#27ae60', // Green (Correct)
                                 '#f39c12', // Orange (False Alarm)
-                                '#c0392b'  // Red (Missed Fraud)
+                                '#c0392b'  // Red (Missed Fraud)
                             ],
                             borderWidth: 1
                         }]
