@@ -55,9 +55,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'frauddetection.urls'
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
 
 TEMPLATES = [
     {
