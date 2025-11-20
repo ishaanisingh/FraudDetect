@@ -21,10 +21,18 @@ from django.urls import path
 from app import views  # Import your views from the 'app' folder
 
 urlpatterns = [
+    # 1. Admin Site
     path('admin/', admin.site.urls),
     
-    # This is the NEW endpoint for your ML Model
-    # It connects the URL 'api/predict/' to the 'predict' function in views.py
-    path('api/predict/', views.predict, name='predict'),
+    # 2. PREDICTION API (The old endpoint needed for compatibility)
+    # This handles both GET (list) and POST (prediction) requests
+    path('api/transactions/', views.transaction_list_create, name='transaction_list_create'),
+    
+    # 3. STATS API (The fixed endpoint for the dashboard/charts)
     path('api/validation-data/', views.validation_data, name='validation_data'),
+    
+    # 4. SINGLE TRANSACTION DETAIL (Needed for GET, PUT, DELETE operations)
+    path('api/transactions/<int:pk>/', views.transaction_detail, name='transaction_detail'),
+    
+    # Remove the crashing line path('api/predict/', views.predict, name='predict'),
 ]
