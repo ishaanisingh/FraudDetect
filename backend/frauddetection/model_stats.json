@@ -1,10 +1,10 @@
 {
     "actual_fraud": 2155,
     "actual_legit": 242787,
-    "pred_fraud": 706,
-    "pred_legit": 244236,
-    "correct_count": 242851,
-    "false_alarm": 321,
-    "missed_fraud": 1770,
+    "pred_fraud": 31404,
+    "pred_legit": 213538,
+    "correct_count": 215525,
+    "false_alarm": 29333,
+    "missed_fraud": 84,
     "total_transactions": 244942
 }
