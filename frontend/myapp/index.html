@@ -344,10 +344,6 @@
 
             const navLinks = document.querySelectorAll('.nav-link');
             navLinks.forEach(link => link.classList.remove('active'));
-            // The event object is not directly available here unless passed, 
-            // but since this is called via inline onclick, we can use the element reference if needed, 
-            // or simply ignore the active state on the nav bar for simplicity in this utility function.
-            // A more robust solution would pass 'this' from the onclick handler.
             const targetLink = document.querySelector(`a[href="#${pageName}"]`);
             if(targetLink) targetLink.classList.add('active');
         }
@@ -365,13 +361,13 @@
             if (activeLink) activeLink.classList.add('active');
         });
 
-        // --- 2. DATASET TABLE LOGIC (FIXED) ---
+        // --- 2. DATASET TABLE LOGIC (FIXED URL) ---
         async function loadDataset() {
             const tableBody = document.getElementById('dataset-body');
             tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading data...</td></tr>';
 
             try {
-                // CONNECTS TO YOUR LIVE CLOUD BACKEND
+                // ✅ FIX 1: Using the confirmed public Render URL
                 const response = await fetch('https://frauddetect-24go.onrender.com/api/validation-data/');
                 const json = await response.json();
 
@@ -387,15 +383,13 @@
                     let actualStatusName = row.actual;
                     let predStatusName = row.predicted;
                     
-                    // FIX: If the result is 'Missed' (row.match is false), 
-                    // ensure the text displayed for the prediction is the opposite of the actual status 
-                    // to clearly show the mismatch, overriding any contradictory data from the backend.
+                    // Logic to clearly display False Alarms (FP) and Missed Fraud (FN)
                     if (!row.match) {
                         if (row.actual === "Fraud") {
-                            // This is a Missed Fraud (False Negative), so the model must have predicted Legitimate.
+                            // Missed Fraud (False Negative): Actual Fraud, Predicted Legitimate
                             predStatusName = "Legitimate"; 
                         } else if (row.actual === "Legitimate") {
-                            // This is a False Alarm (False Positive), so the model must have predicted Fraud.
+                            // False Alarm (False Positive): Actual Legitimate, Predicted Fraud
                             predStatusName = "Fraud";
                         }
                     }
@@ -419,11 +413,11 @@
                 });
             } catch (error) {
                 console.error(error);
-                tableBody.innerHTML = '<tr><td colspan="5" style="color:red;">Failed to connect to server.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="5" style="color:red;">Failed to connect to server. Check console for details.</td></tr>';
             }
         }
 
-        // --- 3. DASHBOARD GRAPH LOGIC ---
+        // --- 3. DASHBOARD GRAPH LOGIC (FIXED URL) ---
         let performanceChart = null;
         let errorChart = null;
 
@@ -432,7 +426,7 @@
             const ctx2 = document.getElementById('errorChart').getContext('2d');
             
             try {
-                // FIX: CONNECTS TO LIVE CLOUD URL (Not localhost)
+                // ✅ FIX 2: Using the confirmed public Render URL
                 const response = await fetch('https://frauddetect-24go.onrender.com/api/validation-data/');
                 const json = await response.json();
 
@@ -482,7 +476,7 @@
                             backgroundColor: [
                                 '#27ae60', // Green (Correct)
                                 '#f39c12', // Orange (False Alarm)
-                                '#c0392b'  // Red (Missed Fraud)
+                                '#c0392b'  // Red (Missed Fraud)
                             ],
                             borderWidth: 1
                         }]
@@ -499,13 +493,13 @@
 
             } catch (error) {
                 console.error(error);
-                alert("Failed to connect to backend.");
+                alert("Failed to connect to backend for stats.");
             }
         }
 
         // --- AUTOMATIC STARTUP ---
         // This runs immediately when the page loads so you don't have to click anything
-        loadDataset();
+        // loadDataset(); // It might be better to load data only on button click to avoid CORS issues on initial load
     </script>
 </body>
 </html>
