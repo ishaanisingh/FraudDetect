@@ -134,7 +134,7 @@ def transaction_list_create(request):
             
             # CRITICAL FIX: Lowering the threshold to catch more fraud cases (reduce False Negatives)
             # 0.75 was too high, leading to most fraud being missed.
-            NEW_THRESHOLD = 0.35 
+            NEW_THRESHOLD = 0.48
             is_fraud = bool(y_prob >= NEW_THRESHOLD)
             
             transaction_instance = serializer.save(is_fraud=is_fraud)
